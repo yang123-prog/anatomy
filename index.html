@@ -1,62 +1,103 @@
 <!DOCTYPE html>
-<html lang="zh">
-<head><meta charset="UTF-8"><title>Diagnostic</title></head>
-<body style="background:#000;color:#fff;font-family:monospace;padding:30px;font-size:18px">
-<h1 style="color:#0f0">✅ Test Page</h1>
-<p>If you see this green text, GitHub Pages is working.</p>
-<hr>
-<div id="tests"></div>
+<html lang="zh"><head><meta charset="UTF-8"><title>Anatomy Viewer</title>
+<style>
+body{font-family:system-ui;background:#0a0a0a;color:#e0e0e0;margin:0;padding:20px}
+h1{color:#fff}
+#status{color:#888;margin:10px 0}
+canvas{display:block;border:1px solid #333}
+</style></head>
+<body>
+<h1>Anatomy - Standalone</h1>
+<div id="status">Loading Three.js...</div>
+<canvas id="c" width="600" height="400"></canvas>
+
 <script>
-var t = document.getElementById("tests");
-function show(msg, pass) {
-  t.innerHTML += '<p style="color:'+(pass?'#0f0':'#e55')+'">' + msg + '</p>';
-}
-show("1. HTML rendered", true);
-
-// Test script loading
-show("2. JavaScript running", true);
-
-// Test canvas/WebGL
-var c = document.createElement("canvas");
-var gl = c.getContext("webgl2") || c.getContext("webgl");
-show("3. WebGL: " + (gl ? "YES" : "NO"), !!gl);
-
-// Test dynamic script loading
-var s = document.createElement("script");
-s.src = "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js";
-s.onload = function() {
-  show("4. Three.js loaded (global): " + (typeof THREE !== "undefined" ? "YES" : "NO"), typeof THREE !== "undefined");
-  
-  // Try renderer
-  if (typeof THREE !== "undefined") {
-    try {
-      var r = new THREE.WebGLRenderer({canvas:c});
-      r.setSize(100,100);
-      var sc = new THREE.Scene();
-      sc.background = new THREE.Color(0x006600);
-      var cam = new THREE.PerspectiveCamera(45,1,0.1,100);
-      cam.position.z = 2;
-      r.render(sc, cam);
-      document.body.appendChild(r.domElement);
-      show("5. Three.js WebGL render: OK (green box above)", true);
-      
-      // Test model URL
-      var xhr = new XMLHttpRequest();
-      xhr.open("HEAD", "https://cdn.jsdelivr.net/gh/yang123-prog/anatomy@main/models/skin.glb");
-      xhr.onload = function() {
-        show("6. jsdelivr CDN model: HTTP " + xhr.status + " (" + xhr.getResponseHeader("content-length") + " bytes)", xhr.status === 200);
-        if (xhr.status === 200) show("✅ ALL TESTS PASSED - models should load!", true);
-        else show("❌ CDN model not accessible", false);
-      };
-      xhr.onerror = function() { show("6. jsdelivr CDN: NETWORK ERROR", false); };
-      xhr.send();
-    } catch(e) {
-      show("5. Three.js render: " + e.message, false);
-    }
-  }
-};
-s.onerror = function() { show("4. Three.js: FAILED TO LOAD", false); };
-document.head.appendChild(s);
+// Non-module, plain script approach
+document.getElementById("status").textContent = "Script running...";
 </script>
-</body>
-</html>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"
+  onload="document.getElementById('status').textContent='Three.js loaded (global)'"
+  onerror="document.getElementById('status').textContent='FAILED to load Three.js'">
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"
+  onerror="document.getElementById('status').textContent='FAILED OrbitControls'">
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/loaders/GLTFLoader.js"
+  onerror="document.getElementById('status').textContent='FAILED GLTFLoader'">
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/loaders/DRACOLoader.js"
+  onerror="document.getElementById('status').textContent='FAILED DRACOLoader'">
+</script>
+
+<script>
+window.addEventListener("load", function() {
+  var s = document.getElementById("status");
+  if (typeof THREE === "undefined") { s.textContent = "Three.js not loaded!"; return; }
+  s.textContent = "Starting renderer...";
+
+  try {
+    var scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a1a2e);
+
+    var camera = new THREE.PerspectiveCamera(45, 600/400, 0.1, 100);
+    camera.position.set(3, 2, 5);
+
+    var renderer = new THREE.WebGLRenderer({canvas:document.getElementById("c"), antialias:true});
+    renderer.setSize(600, 400);
+
+    // Test cube
+    var cube = new THREE.Mesh(
+      new THREE.BoxGeometry(1.5, 1.5, 1.5),
+      new THREE.MeshStandardMaterial({color:0x4a9eff, roughness:0.3})
+    );
+    scene.add(cube);
+
+    scene.add(new THREE.AmbientLight(0x404060, 4));
+    var light = new THREE.DirectionalLight(0xffffff, 5);
+    light.position.set(5, 8, 5);
+    scene.add(light);
+
+    var controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    s.textContent = "Renderer running - see blue cube!";
+
+    function animate() {
+      requestAnimationFrame(animate);
+      cube.rotation.y += 0.01;
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // Now try loading a model
+    setTimeout(function() {
+      s.textContent = "Loading skin model...";
+      var loader = new THREE.GLTFLoader();
+      var draco = new THREE.DRACOLoader();
+      draco.setDecoderPath("https://cdn.jsdelivr.net/gh/yang123-prog/anatomy@main/draco/");
+      loader.setDRACOLoader(draco);
+
+      loader.load("https://cdn.jsdelivr.net/gh/yang123-prog/anatomy@main/models/skin.glb",
+        function(gltf) {
+          scene.remove(cube);
+          var model = gltf.scene;
+          model.scale.setScalar(2);
+          scene.add(model);
+          s.textContent = "Model loaded!";
+        },
+        function(xhr) { if (xhr.total) s.textContent = "Loading: " + Math.round(xhr.loaded/xhr.total*100) + "%"; },
+        function(err) { s.textContent = "Model error: " + (err.message||"unknown"); }
+      );
+    }, 2000);
+
+  } catch(e) {
+    s.textContent = "Error: " + e.message;
+  }
+});
+</script>
+</body></html>
