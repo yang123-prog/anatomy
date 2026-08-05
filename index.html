@@ -1,37 +1,115 @@
 <!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>Network Test</title></head>
-<body style="background:#111;color:#fff;font:16px monospace;padding:30px">
-<h1>Network Diagnostic</h1>
-<div id="log"></div>
-<script>
-var log = document.getElementById("log");
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anatomy - 3D Human Anatomy</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;font-family:system-ui,sans-serif;background:#0a0a0a;color:#e0e0e0}
+#app{display:flex;width:100%;height:100%}
+#sidebar{width:260px;min-width:260px;background:#111;border-right:1px solid #222;overflow-y:auto}
+#sidebar h1{padding:24px 20px 16px;font-size:18px;font-weight:600;border-bottom:1px solid #222;color:#fff}
+#organ-list{list-style:none;padding:0}
+#organ-list li{padding:14px 20px;cursor:pointer;transition:all .15s;border-left:3px solid transparent;font-size:14px;color:#999;display:flex;align-items:center;gap:10px}
+#organ-list li:hover{background:#1a1a1a;color:#fff}
+#organ-list li.active{background:#1a1a1a;color:#fff;border-left-color:#4a9eff}
+#organ-list li .dot{width:8px;height:8px;border-radius:50%;background:#333;flex-shrink:0}
+#organ-list li.active .dot{background:#4a9eff}
+#viewport{flex:1;position:relative}
+#status{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#888;font-size:14px;z-index:10;pointer-events:none}
+</style></head>
+<body>
+<div id="app">
+  <div id="sidebar"><h1>Human Anatomy</h1><ul id="organ-list"></ul></div>
+  <div id="viewport"><div id="status">Loading...</div></div>
+</div>
 
-function add(msg, cls) {
-  var c = cls || "#888";
-  log.innerHTML += '<div style="color:'+c+';margin:4px 0">'+msg+'</div>';
+<script type="importmap">
+{
+  "imports": {
+    "three": "./lib/three.module.js",
+    "three/addons/controls/OrbitControls.js": "./lib/controls/OrbitControls.js",
+    "three/addons/loaders/GLTFLoader.js": "./lib/loaders/GLTFLoader.js",
+    "three/addons/loaders/DRACOLoader.js": "./lib/loaders/DRACOLoader.js"
+  }
 }
+</script>
 
-function testFetch(url, label) {
-  add("Testing: " + label + "...", "#aaa");
-  add("  URL: " + url, "#666");
-  fetch(url, {method:"HEAD",mode:"cors"})
-    .then(function(r) {
-      add("  RESULT: HTTP " + r.status + " " + r.statusText + " (OK)", "#0f0");
-      return r.headers.get("content-length");
-    })
-    .then(function(len) { if(len) add("  Size: " + len + " bytes", "#666"); })
-    .catch(function(e) {
-      add("  RESULT: FAILED - " + e.message, "#e55");
+<script type="module">
+const st = document.getElementById("status");
+const organs = [
+  { key:"skin", name:"Skin", emoji:"🧍" }, { key:"brain", name:"Brain", emoji:"🧠" },
+  { key:"eyeball", name:"Eyeball", emoji:"👁" }, { key:"heart", name:"Heart", emoji:"🫀" },
+  { key:"lungs", name:"Lungs", emoji:"🫁" }, { key:"liver", name:"Liver", emoji:"🧫" },
+  { key:"kidneys", name:"Kidneys", emoji:"🫘" }, { key:"pancreas", name:"Pancreas", emoji:"🧬" },
+  { key:"intestine", name:"Intestine", emoji:"🔬" },
+];
+
+try {
+  st.textContent = "Loading Three.js...";
+  const [THREE,{OrbitControls},{GLTFLoader},{DRACOLoader}] = await Promise.all([
+    import("three"), import("three/addons/controls/OrbitControls.js"),
+    import("three/addons/loaders/GLTFLoader.js"), import("three/addons/loaders/DRACOLoader.js")
+  ]);
+  st.textContent = "Initializing...";
+
+  const vp = document.getElementById("viewport");
+  const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1a1a2e);
+  const camera = new THREE.PerspectiveCamera(45, vp.clientWidth/vp.clientHeight, 0.1, 100);
+  camera.position.set(3, 2, 5);
+  const renderer = new THREE.WebGLRenderer({antialias:true});
+  renderer.setSize(vp.clientWidth, vp.clientHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  vp.appendChild(renderer.domElement);
+
+  scene.add(new THREE.AmbientLight(0x404060, 5));
+  const d1 = new THREE.DirectionalLight(0xffffff, 6); d1.position.set(5,8,5); scene.add(d1);
+  scene.add(new THREE.DirectionalLight(0x4466aa, 3)).position.set(-3,1,-2);
+  scene.add(new THREE.DirectionalLight(0x6688cc, 3)).position.set(0,-1,3);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true; controls.target.set(0,0.3,0); controls.update();
+
+  window.addEventListener("resize", () => { camera.aspect = vp.clientWidth/vp.clientHeight; camera.updateProjectionMatrix(); renderer.setSize(vp.clientWidth, vp.clientHeight); });
+
+  const draco = new DRACOLoader(); draco.setDecoderPath("./draco/");
+  const loader = new GLTFLoader(); loader.setDRACOLoader(draco);
+
+  const list = document.getElementById("organ-list");
+  organs.forEach(o => { const li = document.createElement("li"); li.innerHTML = '<span class="dot"></span>'+o.emoji+' '+o.name; list.appendChild(li); });
+
+  let model = null;
+  function load(key, name) {
+    if (model) { scene.remove(model); model = null; }
+    st.textContent = "Loading " + name + "...";
+    loader.load("./models/" + key + ".glb",
+      (gltf) => {
+        st.textContent = "";
+        model = gltf.scene;
+        const box = new THREE.Box3().setFromObject(model);
+        const c = new THREE.Vector3(); box.getCenter(c);
+        model.position.sub(c).add(new THREE.Vector3(0,0.2,0));
+        model.scale.setScalar(2.5/Math.max(...box.getSize(new THREE.Vector3()).toArray()));
+        model.traverse(ch => { if(ch.isMesh){ ch.material=ch.material.clone(); ch.material.metalness=0.05; ch.material.roughness=0.45; }});
+        scene.add(model); controls.target.set(0,0.2,0); controls.update();
+      },
+      (xhr) => { if(xhr.total) st.textContent = name + " " + Math.round(xhr.loaded/xhr.total*100) + "%"; },
+      () => { st.textContent = "Failed: " + name; }
+    );
+  }
+
+  document.querySelectorAll("#organ-list li").forEach((li,i) => {
+    li.addEventListener("click", () => {
+      document.querySelectorAll("#organ-list li").forEach(l=>l.classList.remove("active"));
+      li.classList.add("active"); load(organs[i].key, organs[i].name);
     });
-}
+  });
 
-add("1. Inline JS: OK (this message proves JS runs)", "#0f0");
+  load("skin","Skin");
+  document.querySelector("#organ-list li:first-child").classList.add("active");
 
-setTimeout(function() {
-  testFetch("https://yang123-prog.github.io/anatomy/models/skin.glb", "GitHub Pages - model");
-  testFetch("https://raw.githubusercontent.com/yang123-prog/anatomy/main/models/skin.glb", "raw.githubusercontent - model");
-  testFetch("https://raw.githubusercontent.com/yang123-prog/anatomy/main/lib/three.module.js", "raw.githubusercontent - three.js");
-  testFetch("https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "jsdelivr CDN - three.js");
-}, 500);
+  function animate() { requestAnimationFrame(animate); controls.update(); if(model) model.rotation.y+=0.003; renderer.render(scene,camera); }
+  animate();
+
+} catch(e) { st.textContent = "Error: " + e.message; console.error(e); }
 </script>
 </body></html>
