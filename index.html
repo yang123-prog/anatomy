@@ -25,10 +25,8 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:system-ui,sans-seri
 <script type="importmap">
 {
   "imports": {
-    "three": "https://yang123-prog.github.io/anatomy/lib/three.module.js",
-    "three/examples/jsm/controls/OrbitControls.js": "https://yang123-prog.github.io/anatomy/lib/controls/OrbitControls.js",
-    "three/examples/jsm/loaders/GLTFLoader.js": "https://yang123-prog.github.io/anatomy/lib/loaders/GLTFLoader.js",
-    "three/examples/jsm/loaders/DRACOLoader.js": "https://yang123-prog.github.io/anatomy/lib/loaders/DRACOLoader.js"
+    "three": "https://esm.sh/three@0.160.0/build/three.module.js",
+    "three/examples/jsm/": "https://esm.sh/three@0.160.0/examples/jsm/"
   }
 }
 </script>
@@ -44,14 +42,14 @@ const organs = [
 ];
 
 try {
-  st.textContent = "Loading Three.js...";
+  st.textContent = "Loading esm.sh...";
   const [THREE,{OrbitControls},{GLTFLoader},{DRACOLoader}] = await Promise.all([
     import("three"),
     import("three/examples/jsm/controls/OrbitControls.js"),
     import("three/examples/jsm/loaders/GLTFLoader.js"),
     import("three/examples/jsm/loaders/DRACOLoader.js")
   ]);
-  st.textContent = "Initializing...";
+  st.textContent = "Three.js ready. Loading model...";
 
   const vp = document.getElementById("viewport");
   const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1a1a2e);
