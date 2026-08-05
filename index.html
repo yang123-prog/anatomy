@@ -26,12 +26,13 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:system-ui,sans-seri
 {
   "imports": {
     "three": "https://esm.sh/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://esm.sh/three@0.160.0/examples/jsm/"
+    "three/examples/jsm/": "https://esm.sh/three@0.160.0/examples/jsm/"
   }
 }
 </script>
 
 <script type="module">
+const BASE = "https://cdn.jsdelivr.net/gh/yang123-prog/anatomy@main/";
 const st = document.getElementById("status");
 const organs = [
   { key:"skin",name:"Skin",emoji:"🧍" },{ key:"brain",name:"Brain",emoji:"🧠" },
@@ -44,8 +45,10 @@ const organs = [
 try {
   st.textContent = "Loading Three.js...";
   const [THREE,{OrbitControls},{GLTFLoader},{DRACOLoader}] = await Promise.all([
-    import("three"), import("three/addons/controls/OrbitControls.js"),
-    import("three/addons/loaders/GLTFLoader.js"), import("three/addons/loaders/DRACOLoader.js")
+    import("three"),
+    import("three/examples/jsm/controls/OrbitControls.js"),
+    import("three/examples/jsm/loaders/GLTFLoader.js"),
+    import("three/examples/jsm/loaders/DRACOLoader.js")
   ]);
   st.textContent = "Initializing...";
 
@@ -69,8 +72,7 @@ try {
 
   window.addEventListener("resize", () => { camera.aspect = vp.clientWidth/vp.clientHeight; camera.updateProjectionMatrix(); renderer.setSize(vp.clientWidth, vp.clientHeight); });
 
-  const draco = new DRACOLoader();
-  draco.setDecoderPath("https://cdn.jsdelivr.net/gh/yang123-prog/anatomy@main/draco/");
+  const draco = new DRACOLoader(); draco.setDecoderPath(BASE + "draco/");
   const loader = new GLTFLoader(); loader.setDRACOLoader(draco);
 
   const list = document.getElementById("organ-list");
@@ -80,17 +82,13 @@ try {
   function load(key, name) {
     if (model) { scene.remove(model); model = null; }
     st.textContent = "Loading " + name + "...";
-    loader.load("https://cdn.jsdelivr.net/gh/yang123-prog/anatomy@main/models/" + key + ".glb",
-      (gltf) => {
-        st.textContent = "";
-        model = gltf.scene;
-        const box = new THREE.Box3().setFromObject(model);
-        const c = new THREE.Vector3(); box.getCenter(c);
+    loader.load(BASE + "models/" + key + ".glb",
+      (gltf) => { st.textContent = ""; model = gltf.scene;
+        const box = new THREE.Box3().setFromObject(model); const c = new THREE.Vector3(); box.getCenter(c);
         model.position.sub(c).add(new THREE.Vector3(0,0.2,0));
         model.scale.setScalar(2.5/Math.max(...box.getSize(new THREE.Vector3()).toArray()));
         model.traverse(ch => { if(ch.isMesh){ ch.material=ch.material.clone(); ch.material.metalness=0.05; ch.material.roughness=0.45; }});
-        scene.add(model); controls.target.set(0,0.2,0); controls.update();
-      },
+        scene.add(model); controls.target.set(0,0.2,0); controls.update(); },
       (xhr) => { if(xhr.total) st.textContent = name + " " + Math.round(xhr.loaded/xhr.total*100) + "%"; },
       () => { st.textContent = "Failed: " + name; }
     );
@@ -102,13 +100,9 @@ try {
       li.classList.add("active"); load(organs[i].key, organs[i].name);
     });
   });
-
-  load("skin","Skin");
-  document.querySelector("#organ-list li:first-child").classList.add("active");
-
+  load("skin","Skin"); document.querySelector("#organ-list li:first-child").classList.add("active");
   function animate() { requestAnimationFrame(animate); controls.update(); if(model) model.rotation.y+=0.003; renderer.render(scene,camera); }
   animate();
-
 } catch(e) { st.textContent = "Error: " + e.message; console.error(e); }
 </script>
 </body></html>
