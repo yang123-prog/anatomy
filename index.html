@@ -25,10 +25,8 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:system-ui,sans-seri
 <script type="importmap">
 {
   "imports": {
-    "three": "./lib/three.module.js",
-    "three/addons/controls/OrbitControls.js": "./lib/controls/OrbitControls.js",
-    "three/addons/loaders/GLTFLoader.js": "./lib/loaders/GLTFLoader.js",
-    "three/addons/loaders/DRACOLoader.js": "./lib/loaders/DRACOLoader.js"
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
   }
 }
 </script>
@@ -46,10 +44,12 @@ const organs = [
 try {
   st.textContent = "Loading Three.js...";
   const [THREE,{OrbitControls},{GLTFLoader},{DRACOLoader}] = await Promise.all([
-    import("three"), import("three/addons/controls/OrbitControls.js"),
-    import("three/addons/loaders/GLTFLoader.js"), import("three/addons/loaders/DRACOLoader.js")
+    import("three"),
+    import("three/addons/controls/OrbitControls.js"),
+    import("three/addons/loaders/GLTFLoader.js"),
+    import("three/addons/loaders/DRACOLoader.js")
   ]);
-  st.textContent = "Initializing...";
+  st.textContent = "Three.js ready. Loading model...";
 
   const vp = document.getElementById("viewport");
   const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1a1a2e);
@@ -71,7 +71,8 @@ try {
 
   window.addEventListener("resize", () => { camera.aspect = vp.clientWidth/vp.clientHeight; camera.updateProjectionMatrix(); renderer.setSize(vp.clientWidth, vp.clientHeight); });
 
-  const draco = new DRACOLoader(); draco.setDecoderPath("./draco/");
+  const draco = new DRACOLoader();
+  draco.setDecoderPath("https://cdn.jsdelivr.net/gh/yang123-prog/anatomy@main/draco/");
   const loader = new GLTFLoader(); loader.setDRACOLoader(draco);
 
   const list = document.getElementById("organ-list");
@@ -81,7 +82,7 @@ try {
   function load(key, name) {
     if (model) { scene.remove(model); model = null; }
     st.textContent = "Loading " + name + "...";
-    loader.load("./models/" + key + ".glb",
+    loader.load("https://cdn.jsdelivr.net/gh/yang123-prog/anatomy@main/models/" + key + ".glb",
       (gltf) => {
         st.textContent = "";
         model = gltf.scene;
