@@ -5,19 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Anatomy - 3D Human Anatomy</title>
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-html, body { width: 100%; height: 100%; overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a0a; color: #e0e0e0; }
-#app { display: flex; width: 100%; height: 100%; }
-#sidebar { width: 260px; min-width: 260px; background: #111; border-right: 1px solid #222; display: flex; flex-direction: column; overflow-y: auto; }
-#sidebar h1 { padding: 24px 20px 16px; font-size: 18px; font-weight: 600; border-bottom: 1px solid #222; color: #fff; letter-spacing: 0.5px; }
-#sidebar p.subtitle { padding: 0 20px 16px; font-size: 12px; color: #666; }
-#organ-list { list-style: none; padding: 0; }
-#organ-list li { padding: 14px 20px; cursor: pointer; transition: all 0.15s; border-left: 3px solid transparent; font-size: 14px; color: #999; }
-#organ-list li:hover { background: #1a1a1a; color: #fff; }
-#organ-list li.active { background: #1a1a1a; color: #fff; border-left-color: #4a9eff; }
-#viewport { flex: 1; position: relative; }
-#loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); color: #666; font-size: 14px; z-index: 10; }
-.info-panel { position: absolute; bottom: 20px; left: 20px; background: rgba(0,0,0,0.7); padding: 8px 14px; border-radius: 6px; font-size: 12px; color: #888; pointer-events: none; }
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0}
+#app{display:flex;width:100%;height:100%}
+#sidebar{width:260px;min-width:260px;background:#111;border-right:1px solid #222;display:flex;flex-direction:column;overflow-y:auto;z-index:1}
+#sidebar h1{padding:24px 20px 16px;font-size:18px;font-weight:600;border-bottom:1px solid #222;color:#fff;letter-spacing:.5px}
+#sidebar p.subtitle{padding:0 20px 16px;font-size:12px;color:#666}
+#organ-list{list-style:none;padding:0}
+#organ-list li{padding:14px 20px;cursor:pointer;transition:all .15s;border-left:3px solid transparent;font-size:14px;color:#999;display:flex;align-items:center;gap:10px}
+#organ-list li:hover{background:#1a1a1a;color:#fff}
+#organ-list li.active{background:#1a1a1a;color:#fff;border-left-color:#4a9eff}
+#organ-list li .dot{width:8px;height:8px;border-radius:50%;background:#333;flex-shrink:0}
+#organ-list li.active .dot{background:#4a9eff}
+#viewport{flex:1;position:relative}
+#status{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#888;font-size:14px;z-index:10;text-align:center}
+#status.error{color:#e55}
+.info-panel{position:absolute;bottom:20px;left:20px;background:rgba(0,0,0,.7);padding:8px 14px;border-radius:6px;font-size:11px;color:#666;pointer-events:none}
 </style>
 </head>
 <body>
@@ -28,144 +31,154 @@ html, body { width: 100%; height: 100%; overflow: hidden; font-family: 'Segoe UI
     <ul id="organ-list"></ul>
   </div>
   <div id="viewport">
-    <div id="loading">Loading 3D viewer...</div>
+    <div id="status">Loading...<br><span style="font-size:11px;color:#555">Fetching 3D engine</span></div>
     <div class="info-panel">Drag to rotate &bull; Scroll to zoom</div>
   </div>
 </div>
 
 <script type="importmap">
-{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
 </script>
 
 <script type="module">
-import * as THREE from "three";
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+const statusEl = document.getElementById("status");
+function setStatus(msg, isError) {
+  statusEl.innerHTML = msg;
+  statusEl.className = isError ? "error" : "";
+}
 
 const organs = [
-  { key: "brain",     name: "Brain",       emoji: "🧠" },
-  { key: "eyeball",   name: "Eyeball",     emoji: "👁" },
-  { key: "heart",     name: "Heart",       emoji: "🫀" },
-  { key: "intestine", name: "Intestine",   emoji: "🔬" },
-  { key: "kidneys",   name: "Kidneys",     emoji: "🫘" },
-  { key: "liver",     name: "Liver",       emoji: "🧫" },
-  { key: "lungs",     name: "Lungs",       emoji: "🫁" },
-  { key: "pancreas",  name: "Pancreas",    emoji: "🧬" },
-  { key: "skin",      name: "Skin",        emoji: "🧍" },
+  { key:"brain",     name:"Brain",       emoji:"🧠" },
+  { key:"eyeball",   name:"Eyeball",     emoji:"👁" },
+  { key:"heart",     name:"Heart",       emoji:"🫀" },
+  { key:"intestine", name:"Intestine",   emoji:"🔬" },
+  { key:"kidneys",   name:"Kidneys",     emoji:"🫘" },
+  { key:"liver",     name:"Liver",       emoji:"🧫" },
+  { key:"lungs",     name:"Lungs",       emoji:"🫁" },
+  { key:"pancreas",  name:"Pancreas",    emoji:"🧬" },
+  { key:"skin",      name:"Skin",        emoji:"🧍" },
 ];
 
-let scene, camera, renderer, controls, currentModel;
-const loader = new GLTFLoader();
+try {
+  setStatus("Loading Three.js...");
+  const [{default:THREE},{OrbitControls},{GLTFLoader}] = await Promise.all([
+    import("three"),
+    import("three/addons/controls/OrbitControls.js"),
+    import("three/addons/loaders/GLTFLoader.js")
+  ]);
 
-function init() {
   const vp = document.getElementById("viewport");
-  scene = new THREE.Scene();
+  const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x0a0a0a);
 
-  camera = new THREE.PerspectiveCamera(45, vp.clientWidth / vp.clientHeight, 0.1, 100);
+  const camera = new THREE.PerspectiveCamera(45, vp.clientWidth/vp.clientHeight, 0.1, 100);
   camera.position.set(3, 2, 5);
-  camera.lookAt(0, 0, 0);
 
-  renderer = new THREE.WebGLRenderer({ antialias: true });
+  const renderer = new THREE.WebGLRenderer({antialias:true});
   renderer.setSize(vp.clientWidth, vp.clientHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.shadowMap.enabled = true;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   vp.appendChild(renderer.domElement);
 
-  controls = new OrbitControls(camera, renderer.domElement);
+  const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.target.set(0, 0.3, 0);
   controls.update();
 
-  const ambient = new THREE.AmbientLight(0x404060, 3);
-  scene.add(ambient);
+  scene.add(new THREE.AmbientLight(0x404060, 3));
   const key = new THREE.DirectionalLight(0xffffff, 5);
   key.position.set(5, 8, 5);
   scene.add(key);
-  const fill = new THREE.DirectionalLight(0x4466aa, 2);
-  fill.position.set(-3, 1, -2);
-  scene.add(fill);
-  const rim = new THREE.DirectionalLight(0x6688cc, 2);
-  rim.position.set(0, -1, 3);
-  scene.add(rim);
+  scene.add(new THREE.DirectionalLight(0x4466aa, 2)).position.set(-3, 1, -2);
+  scene.add(new THREE.DirectionalLight(0x6688cc, 2)).position.set(0, -1, 3);
 
   window.addEventListener("resize", () => {
-    camera.aspect = vp.clientWidth / vp.clientHeight;
+    camera.aspect = vp.clientWidth/vp.clientHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(vp.clientWidth, vp.clientHeight);
   });
 
-  document.getElementById("loading").style.display = "none";
-  animate();
-}
+  let currentModel = null;
+  const loader = new GLTFLoader();
 
-function animate() {
-  requestAnimationFrame(animate);
-  controls.update();
-  if (currentModel) { currentModel.rotation.y += 0.002; }
-  renderer.render(scene, camera);
-}
-
-function loadOrgan(key) {
-  if (currentModel) {
-    scene.remove(currentModel);
-    disposeModel(currentModel);
-    currentModel = null;
-  }
-  document.getElementById("loading").style.display = "block";
-  loader.load(`./models/${key}.glb`, (gltf) => {
-    document.getElementById("loading").style.display = "none";
-    currentModel = gltf.scene;
-    const box = new THREE.Box3().setFromObject(currentModel);
-    const center = new THREE.Vector3();
-    box.getCenter(center);
-    currentModel.position.sub(center);
-    currentModel.position.y += 0.2;
-    const size = box.getSize(new THREE.Vector3());
-    const s = 2 / Math.max(size.x, size.y, size.z);
-    currentModel.scale.setScalar(s);
-    currentModel.traverse((child) => {
-      if (child.isMesh) {
-        child.material = child.material.clone();
-        child.material.metalness = 0.1;
-        child.material.roughness = 0.5;
+  function disposeModel(obj) {
+    obj.traverse((child) => {
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) {
+        if (Array.isArray(child.material)) child.material.forEach(m=>m.dispose());
+        else child.material.dispose();
       }
     });
-    scene.add(currentModel);
-    controls.target.set(0, 0.2, 0);
+  }
+
+  function loadOrgan(key) {
+    if (currentModel) { scene.remove(currentModel); disposeModel(currentModel); currentModel = null; }
+    setStatus(`Loading ${key} model...<br><span style="font-size:11px;color:#555">Downloading 3D data</span>`);
+    loader.load(`./models/${key}.glb`, (gltf) => {
+      setStatus("");
+      currentModel = gltf.scene;
+      const box = new THREE.Box3().setFromObject(currentModel);
+      const center = new THREE.Vector3();
+      box.getCenter(center);
+      currentModel.position.sub(center).add(new THREE.Vector3(0, 0.2, 0));
+      const size = box.getSize(new THREE.Vector3());
+      const s = 2 / Math.max(size.x, size.y, size.z);
+      currentModel.scale.setScalar(s);
+      currentModel.traverse((child) => {
+        if (child.isMesh) {
+          child.material = child.material.clone();
+          child.material.metalness = 0.1;
+          child.material.roughness = 0.5;
+        }
+      });
+      scene.add(currentModel);
+      controls.target.set(0, 0.2, 0);
+      controls.update();
+    }, (xhr) => {
+      if (xhr.total > 0) {
+        const pct = Math.round(xhr.loaded/xhr.total*100);
+        setStatus(`Loading ${key}... ${pct}%<br><span style="font-size:11px;color:#555">${(xhr.loaded/1024/1024).toFixed(1)} / ${(xhr.total/1024/1024).toFixed(1)} MB</span>`);
+      }
+    }, (err) => {
+      setStatus(`Failed to load ${key}<br><span style="font-size:11px;color:#e55">${err?.message||'Unknown error'}</span>`, true);
+    });
+  }
+
+  const list = document.getElementById("organ-list");
+  organs.forEach((o) => {
+    const li = document.createElement("li");
+    li.innerHTML = `<span class="dot"></span>${o.emoji} ${o.name}`;
+    li.addEventListener("click", () => {
+      document.querySelectorAll("#organ-list li").forEach(l=>l.classList.remove("active"));
+      li.classList.add("active");
+      loadOrgan(o.key);
+    });
+    list.appendChild(li);
+  });
+
+  function animate() {
+    requestAnimationFrame(animate);
     controls.update();
-  }, undefined, () => {
-    document.getElementById("loading").style.display = "none";
-  });
+    if (currentModel) currentModel.rotation.y += 0.002;
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  // Auto-load skin
+  setStatus("Loading skin model...");
+  loadOrgan("skin");
+  document.querySelector("#organ-list li:last-child").classList.add("active");
+
+} catch(e) {
+  setStatus(`Init Error<br><span style="font-size:11px;color:#e55">${e.message}</span>`, true);
+  console.error(e);
 }
-
-function disposeModel(obj) {
-  obj.traverse((child) => {
-    if (child.geometry) child.geometry.dispose();
-    if (child.material) {
-      if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
-      else child.material.dispose();
-    }
-  });
-}
-
-const list = document.getElementById("organ-list");
-organs.forEach((o) => {
-  const li = document.createElement("li");
-  li.textContent = `${o.emoji} ${o.name}`;
-  li.addEventListener("click", () => {
-    document.querySelectorAll("#organ-list li").forEach(l => l.classList.remove("active"));
-    li.classList.add("active");
-    loadOrgan(o.key);
-  });
-  list.appendChild(li);
-});
-
-init();
-loadOrgan("skin");
-document.querySelector("#organ-list li:last-child").classList.add("active");
 </script>
 </body>
 </html>
