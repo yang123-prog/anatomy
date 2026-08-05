@@ -1,159 +1,62 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Anatomy - 3D Human Anatomy</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,sans-serif;background:#0a0a0a;color:#e0e0e0}
-#app{display:flex;width:100%;height:100%}
-#sidebar{width:260px;min-width:260px;background:#111;border-right:1px solid #222;display:flex;flex-direction:column;overflow-y:auto}
-#sidebar h1{padding:24px 20px 16px;font-size:18px;font-weight:600;border-bottom:1px solid #222;color:#fff}
-#organ-list{list-style:none;padding:0}
-#organ-list li{padding:14px 20px;cursor:pointer;transition:all .15s;border-left:3px solid transparent;font-size:14px;color:#999;display:flex;align-items:center;gap:10px}
-#organ-list li:hover{background:#1a1a1a;color:#fff}
-#organ-list li.active{background:#1a1a1a;color:#fff;border-left-color:#4a9eff}
-#organ-list li .dot{width:8px;height:8px;border-radius:50%;background:#333;flex-shrink:0}
-#organ-list li.active .dot{background:#4a9eff}
-#viewport{flex:1;position:relative}
-#status{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#888;font-size:14px;z-index:10;text-align:center}
-</style>
-</head>
-<body>
-<div id="app">
-  <div id="sidebar"><h1>Human Anatomy</h1><ul id="organ-list"></ul></div>
-  <div id="viewport"><div id="status">Loading...</div></div>
-</div>
-
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-  }
+<html lang="zh">
+<head><meta charset="UTF-8"><title>Diagnostic</title></head>
+<body style="background:#000;color:#fff;font-family:monospace;padding:30px;font-size:18px">
+<h1 style="color:#0f0">✅ Test Page</h1>
+<p>If you see this green text, GitHub Pages is working.</p>
+<hr>
+<div id="tests"></div>
+<script>
+var t = document.getElementById("tests");
+function show(msg, pass) {
+  t.innerHTML += '<p style="color:'+(pass?'#0f0':'#e55')+'">' + msg + '</p>';
 }
-</script>
+show("1. HTML rendered", true);
 
-<script type="module">
-const statusEl = document.getElementById("status");
-function status(msg, cls) { statusEl.innerHTML = msg; }
-const CDN = "https://cdn.jsdelivr.net/gh/yang123-prog/anatomy@main/";
+// Test script loading
+show("2. JavaScript running", true);
 
-const organs = [
-  { key:"skin", name:"Skin", emoji:"🧍" },
-  { key:"brain", name:"Brain", emoji:"🧠" },
-  { key:"eyeball", name:"Eyeball", emoji:"👁" },
-  { key:"heart", name:"Heart", emoji:"🫀" },
-  { key:"lungs", name:"Lungs", emoji:"🫁" },
-  { key:"liver", name:"Liver", emoji:"🧫" },
-  { key:"kidneys", name:"Kidneys", emoji:"🫘" },
-  { key:"pancreas", name:"Pancreas", emoji:"🧬" },
-  { key:"intestine", name:"Intestine", emoji:"🔬" },
-];
+// Test canvas/WebGL
+var c = document.createElement("canvas");
+var gl = c.getContext("webgl2") || c.getContext("webgl");
+show("3. WebGL: " + (gl ? "YES" : "NO"), !!gl);
 
-try {
-  status("Loading Three.js...");
-  const [THREE, {OrbitControls}, {GLTFLoader}, {DRACOLoader}] = await Promise.all([
-    import("three"),
-    import("three/addons/controls/OrbitControls.js"),
-    import("three/addons/loaders/GLTFLoader.js"),
-    import("three/addons/loaders/DRACOLoader.js")
-  ]);
-  status("Initializing...");
-
-  const vp = document.getElementById("viewport");
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x1a1a2e);
-  const camera = new THREE.PerspectiveCamera(45, vp.clientWidth/vp.clientHeight, 0.1, 100);
-  camera.position.set(3, 2, 5);
-  const renderer = new THREE.WebGLRenderer({antialias:true});
-  renderer.setSize(vp.clientWidth, vp.clientHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.2;
-  vp.appendChild(renderer.domElement);
-
-  scene.add(new THREE.AmbientLight(0x404060, 5));
-  const d1 = new THREE.DirectionalLight(0xffffff, 6);
-  d1.position.set(5, 8, 5); scene.add(d1);
-  const d2 = new THREE.DirectionalLight(0x4466aa, 3);
-  d2.position.set(-3, 1, -2); scene.add(d2);
-  const d3 = new THREE.DirectionalLight(0x6688cc, 3);
-  d3.position.set(0, -1, 3); scene.add(d3);
-
-  const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true; controls.dampingFactor = 0.08;
-  controls.target.set(0, 0.3, 0); controls.update();
-
-  window.addEventListener("resize", () => {
-    camera.aspect = vp.clientWidth/vp.clientHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(vp.clientWidth, vp.clientHeight);
-  });
-
-  const dracoLoader = new DRACOLoader();
-  dracoLoader.setDecoderPath(CDN + "draco/");
-  const gltfLoader = new GLTFLoader();
-  gltfLoader.setDRACOLoader(dracoLoader);
-
-  const list = document.getElementById("organ-list");
-  organs.forEach(o => {
-    const li = document.createElement("li");
-    li.innerHTML = '<span class="dot"></span>' + o.emoji + ' ' + o.name;
-    list.appendChild(li);
-  });
-
-  let currentModel = null;
-  function loadOrgan(key, name) {
-    if (currentModel) { scene.remove(currentModel); currentModel = null; }
-    status("Loading " + name + "...");
-    gltfLoader.load(CDN + "models/" + key + ".glb",
-      (gltf) => {
-        status("");
-        currentModel = gltf.scene;
-        const box = new THREE.Box3().setFromObject(currentModel);
-        const c = new THREE.Vector3(); box.getCenter(c);
-        currentModel.position.sub(c).add(new THREE.Vector3(0, 0.2, 0));
-        const s = 2.5 / Math.max(...box.getSize(new THREE.Vector3()).toArray());
-        currentModel.scale.setScalar(s);
-        currentModel.traverse(ch => {
-          if (ch.isMesh) {
-            ch.material = ch.material.clone();
-            ch.material.metalness = 0.05; ch.material.roughness = 0.45;
-          }
-        });
-        scene.add(currentModel);
-        controls.target.set(0, 0.2, 0); controls.update();
-      },
-      (xhr) => { if (xhr.total) status(name + " " + Math.round(xhr.loaded/xhr.total*100) + "%"); },
-      (err) => { status("Failed: " + name); console.error(err); }
-    );
+// Test dynamic script loading
+var s = document.createElement("script");
+s.src = "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js";
+s.onload = function() {
+  show("4. Three.js loaded (global): " + (typeof THREE !== "undefined" ? "YES" : "NO"), typeof THREE !== "undefined");
+  
+  // Try renderer
+  if (typeof THREE !== "undefined") {
+    try {
+      var r = new THREE.WebGLRenderer({canvas:c});
+      r.setSize(100,100);
+      var sc = new THREE.Scene();
+      sc.background = new THREE.Color(0x006600);
+      var cam = new THREE.PerspectiveCamera(45,1,0.1,100);
+      cam.position.z = 2;
+      r.render(sc, cam);
+      document.body.appendChild(r.domElement);
+      show("5. Three.js WebGL render: OK (green box above)", true);
+      
+      // Test model URL
+      var xhr = new XMLHttpRequest();
+      xhr.open("HEAD", "https://cdn.jsdelivr.net/gh/yang123-prog/anatomy@main/models/skin.glb");
+      xhr.onload = function() {
+        show("6. jsdelivr CDN model: HTTP " + xhr.status + " (" + xhr.getResponseHeader("content-length") + " bytes)", xhr.status === 200);
+        if (xhr.status === 200) show("✅ ALL TESTS PASSED - models should load!", true);
+        else show("❌ CDN model not accessible", false);
+      };
+      xhr.onerror = function() { show("6. jsdelivr CDN: NETWORK ERROR", false); };
+      xhr.send();
+    } catch(e) {
+      show("5. Three.js render: " + e.message, false);
+    }
   }
-
-  document.querySelectorAll("#organ-list li").forEach((li,i) => {
-    li.addEventListener("click", () => {
-      document.querySelectorAll("#organ-list li").forEach(l=>l.classList.remove("active"));
-      li.classList.add("active");
-      loadOrgan(organs[i].key, organs[i].name);
-    });
-  });
-
-  loadOrgan("skin", "Skin");
-  document.querySelector("#organ-list li:first-child").classList.add("active");
-
-  function animate() {
-    requestAnimationFrame(animate);
-    controls.update();
-    if (currentModel) currentModel.rotation.y += 0.003;
-    renderer.render(scene, camera);
-  }
-  animate();
-
-} catch(e) {
-  status("Error: " + e.message);
-  console.error(e);
-}
+};
+s.onerror = function() { show("4. Three.js: FAILED TO LOAD", false); };
+document.head.appendChild(s);
 </script>
 </body>
 </html>
