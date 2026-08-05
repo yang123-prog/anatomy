@@ -18,9 +18,13 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:system-ui,sans-seri
 </style></head>
 <body>
 <div id="app"><div id="sidebar"><h1>Human Anatomy</h1><ul id="organ-list"></ul></div><div id="viewport"><div id="msg">Loading...</div></div></div>
-<script type="importmap">{"imports":{"three":"https://esm.sh/three@0.160.0/build/three.module.js","three/examples/jsm/":"https://esm.sh/three@0.160.0/examples/jsm/"}}</script>
+<script type="importmap">{"imports":{"three":"./lib/three.module.js"}}</script>
 <script type="module">
-const msg=document.getElementById("msg");function log(m){msg.textContent=m;console.log(m)}
+import * as THREE from './lib/three.module.js';
+import { OrbitControls } from './lib/controls/OrbitControls.js';
+
+const msg=document.getElementById("msg");
+function log(m){msg.textContent=m;console.log(m)}
 
 const organs=[
   {key:"skin",name:"Skin",emoji:"🧍",color:0xd4a574},
@@ -55,29 +59,25 @@ const parts={
 };
 
 try{
-  log("Loading Three.js...");
-  const THREE=await import("three");
-  const {OrbitControls}=await import("three/examples/jsm/controls/OrbitControls.js");
   log("Building...");
-  
   const vp=document.getElementById("viewport");
   const scene=new THREE.Scene();scene.background=new THREE.Color(0x1a1a2e);
   const camera=new THREE.PerspectiveCamera(45,vp.clientWidth/vp.clientHeight,.1,100);camera.position.set(1.5,1.3,3.5);
   const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(vp.clientWidth,vp.clientHeight);renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));renderer.outputColorSpace=THREE.SRGBColorSpace;vp.appendChild(renderer.domElement);
-  
+
   scene.add(new THREE.AmbientLight(0x404060,3));
   const sun=new THREE.DirectionalLight(0xffffff,5);sun.position.set(3,5,4);scene.add(sun);
   scene.add(new THREE.DirectionalLight(0x4466aa,2)).position.set(-2,1,-1);
-  
+
   const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.target.set(0,.3,0);controls.update();
   window.addEventListener("resize",()=>{camera.aspect=vp.clientWidth/vp.clientHeight;camera.updateProjectionMatrix();renderer.setSize(vp.clientWidth,vp.clientHeight)});
-  
+
   const list=document.getElementById("organ-list");
   organs.forEach(o=>{const li=document.createElement("li");li.innerHTML='<span class="dot"></span>'+o.emoji+' '+o.name;list.appendChild(li)});
-  
+
   const skinMat=new THREE.MeshStandardMaterial({color:0xd4a574,roughness:.7});
   let current=null;
-  
+
   document.querySelectorAll("#organ-list li").forEach((li,i)=>{
     li.addEventListener("click",()=>{
       document.querySelectorAll("#organ-list li").forEach(l=>l.classList.remove("active"));
@@ -92,11 +92,11 @@ try{
       controls.target.set(0,.3,0);controls.update();
     });
   });
-  
+
   const first=new THREE.Group();first.add(parts.skin(skinMat));current=first;scene.add(first);
   document.querySelector("#organ-list li:first-child").classList.add("active");
   log("");
-  
+
   function animate(){requestAnimationFrame(animate);controls.update();if(current)current.rotation.y+=.005;renderer.render(scene,camera)}animate();
 }catch(e){log("Error: "+e.message)}
 </script></body></html>
