@@ -9,8 +9,7 @@
 html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0}
 #app{display:flex;width:100%;height:100%}
 #sidebar{width:260px;min-width:260px;background:#111;border-right:1px solid #222;display:flex;flex-direction:column;overflow-y:auto;z-index:1}
-#sidebar h1{padding:24px 20px 16px;font-size:18px;font-weight:600;border-bottom:1px solid #222;color:#fff;letter-spacing:.5px}
-#sidebar p.subtitle{padding:0 20px 16px;font-size:12px;color:#666}
+#sidebar h1{padding:24px 20px 16px;font-size:18px;font-weight:600;border-bottom:1px solid #222;color:#fff}
 #organ-list{list-style:none;padding:0}
 #organ-list li{padding:14px 20px;cursor:pointer;transition:all .15s;border-left:3px solid transparent;font-size:14px;color:#999;display:flex;align-items:center;gap:10px}
 #organ-list li:hover{background:#1a1a1a;color:#fff}
@@ -18,21 +17,18 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',system-u
 #organ-list li .dot{width:8px;height:8px;border-radius:50%;background:#333;flex-shrink:0}
 #organ-list li.active .dot{background:#4a9eff}
 #viewport{flex:1;position:relative}
-#status{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#888;font-size:14px;z-index:10;text-align:center}
+#status{position:absolute;top:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.8);padding:8px 16px;border-radius:6px;font-size:13px;color:#aaa;z-index:10;pointer-events:none;text-align:center}
 #status.error{color:#e55}
-.info-panel{position:absolute;bottom:20px;left:20px;background:rgba(0,0,0,.7);padding:8px 14px;border-radius:6px;font-size:11px;color:#666;pointer-events:none}
 </style>
 </head>
 <body>
 <div id="app">
   <div id="sidebar">
     <h1>Human Anatomy</h1>
-    <p class="subtitle">Click an organ to explore</p>
     <ul id="organ-list"></ul>
   </div>
   <div id="viewport">
-    <div id="status">Loading...<br><span style="font-size:11px;color:#555">Fetching 3D engine</span></div>
-    <div class="info-panel">Drag to rotate &bull; Scroll to zoom</div>
+    <div id="status">Loading 3D engine...</div>
   </div>
 </div>
 
@@ -46,35 +42,33 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',system-u
 </script>
 
 <script type="module">
-const statusEl = document.getElementById("status");
-function setStatus(msg, isError) {
-  statusEl.innerHTML = msg;
-  statusEl.className = isError ? "error" : "";
-}
+const st = document.getElementById("status");
+function show(msg, isErr) { st.innerHTML = msg; st.className = isErr ? "error" : ""; }
 
 const organs = [
+  { key:"skin",      name:"Skin",       emoji:"🧍" },
   { key:"brain",     name:"Brain",       emoji:"🧠" },
   { key:"eyeball",   name:"Eyeball",     emoji:"👁" },
   { key:"heart",     name:"Heart",       emoji:"🫀" },
-  { key:"intestine", name:"Intestine",   emoji:"🔬" },
-  { key:"kidneys",   name:"Kidneys",     emoji:"🫘" },
-  { key:"liver",     name:"Liver",       emoji:"🧫" },
   { key:"lungs",     name:"Lungs",       emoji:"🫁" },
+  { key:"liver",     name:"Liver",       emoji:"🧫" },
+  { key:"kidneys",   name:"Kidneys",     emoji:"🫘" },
   { key:"pancreas",  name:"Pancreas",    emoji:"🧬" },
-  { key:"skin",      name:"Skin",        emoji:"🧍" },
+  { key:"intestine", name:"Intestine",   emoji:"🔬" },
 ];
 
 try {
-  setStatus("Loading Three.js...");
-  const [{default:THREE},{OrbitControls},{GLTFLoader}] = await Promise.all([
+  show("Loading Three.js + Draco...");
+  const [THREE, {OrbitControls}, {GLTFLoader}, {DRACOLoader}] = await Promise.all([
     import("three"),
     import("three/addons/controls/OrbitControls.js"),
-    import("three/addons/loaders/GLTFLoader.js")
+    import("three/addons/loaders/GLTFLoader.js"),
+    import("three/addons/loaders/DRACOLoader.js")
   ]);
 
   const vp = document.getElementById("viewport");
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0a0a0a);
+  scene.background = new THREE.Color(0x0f0f0f);
 
   const camera = new THREE.PerspectiveCamera(45, vp.clientWidth/vp.clientHeight, 0.1, 100);
   camera.position.set(3, 2, 5);
@@ -83,6 +77,8 @@ try {
   renderer.setSize(vp.clientWidth, vp.clientHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.2;
   vp.appendChild(renderer.domElement);
 
   const controls = new OrbitControls(camera, renderer.domElement);
@@ -91,12 +87,29 @@ try {
   controls.target.set(0, 0.3, 0);
   controls.update();
 
-  scene.add(new THREE.AmbientLight(0x404060, 3));
-  const key = new THREE.DirectionalLight(0xffffff, 5);
-  key.position.set(5, 8, 5);
-  scene.add(key);
-  scene.add(new THREE.DirectionalLight(0x4466aa, 2)).position.set(-3, 1, -2);
-  scene.add(new THREE.DirectionalLight(0x6688cc, 2)).position.set(0, -1, 3);
+  // Lighting
+  scene.add(new THREE.AmbientLight(0x404060, 5));
+  const d1 = new THREE.DirectionalLight(0xffffff, 6);
+  d1.position.set(5, 8, 5);
+  scene.add(d1);
+  const d2 = new THREE.DirectionalLight(0x4466aa, 3);
+  d2.position.set(-3, 1, -2);
+  scene.add(d2);
+  const d3 = new THREE.DirectionalLight(0x6688cc, 3);
+  d3.position.set(0, -1, 3);
+  scene.add(d3);
+
+  // Ground grid for reference
+  const grid = new THREE.GridHelper(4, 20, 0x333333, 0x222222);
+  grid.position.y = -1;
+  scene.add(grid);
+
+  // Test sphere to verify rendering
+  const testGeo = new THREE.SphereGeometry(0.5, 32, 32);
+  const testMat = new THREE.MeshStandardMaterial({color:0x4a9eff, roughness:0.3, metalness:0.1});
+  const testSphere = new THREE.Mesh(testGeo, testMat);
+  scene.add(testSphere);
+  show("Renderer OK - test sphere visible");
 
   window.addEventListener("resize", () => {
     camera.aspect = vp.clientWidth/vp.clientHeight;
@@ -104,8 +117,15 @@ try {
     renderer.setSize(vp.clientWidth, vp.clientHeight);
   });
 
+  // Draco loader
+  const dracoLoader = new DRACOLoader();
+  dracoLoader.setDecoderPath("./draco/");
+  dracoLoader.setDecoderConfig({type:"js"});
+
+  const gltfLoader = new GLTFLoader();
+  gltfLoader.setDRACOLoader(dracoLoader);
+
   let currentModel = null;
-  const loader = new GLTFLoader();
 
   function disposeModel(obj) {
     obj.traverse((child) => {
@@ -117,39 +137,49 @@ try {
     });
   }
 
-  function loadOrgan(key) {
+  function loadOrgan(key, name) {
     if (currentModel) { scene.remove(currentModel); disposeModel(currentModel); currentModel = null; }
-    setStatus(`Loading ${key} model...<br><span style="font-size:11px;color:#555">Downloading 3D data</span>`);
-    loader.load(`./models/${key}.glb`, (gltf) => {
-      setStatus("");
-      currentModel = gltf.scene;
-      const box = new THREE.Box3().setFromObject(currentModel);
-      const center = new THREE.Vector3();
-      box.getCenter(center);
-      currentModel.position.sub(center).add(new THREE.Vector3(0, 0.2, 0));
-      const size = box.getSize(new THREE.Vector3());
-      const s = 2 / Math.max(size.x, size.y, size.z);
-      currentModel.scale.setScalar(s);
-      currentModel.traverse((child) => {
-        if (child.isMesh) {
-          child.material = child.material.clone();
-          child.material.metalness = 0.1;
-          child.material.roughness = 0.5;
+    // Remove test sphere when first model loads
+    if (testSphere.parent) { scene.remove(testSphere); grid.visible = false; }
+    show(`Loading ${name}...`);
+    gltfLoader.load(`./models/${key}.glb`,
+      (gltf) => {
+        show("");
+        currentModel = gltf.scene;
+        const box = new THREE.Box3().setFromObject(currentModel);
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+        currentModel.position.sub(center).add(new THREE.Vector3(0, 0.2, 0));
+        const size = box.getSize(new THREE.Vector3());
+        const s = 2.5 / Math.max(size.x, size.y, size.z);
+        currentModel.scale.setScalar(s);
+        currentModel.traverse((child) => {
+          if (child.isMesh) {
+            child.material = child.material.clone();
+            child.material.metalness = 0.05;
+            child.material.roughness = 0.45;
+            child.material.needsUpdate = true;
+          }
+        });
+        scene.add(currentModel);
+        controls.target.set(0, 0.2, 0);
+        controls.update();
+        console.log("Loaded:", key, "triangles:", renderer.info.render.triangles);
+      },
+      (xhr) => {
+        if (xhr.total > 0) {
+          const pct = Math.round(xhr.loaded/xhr.total*100);
+          show(`${name} ${pct}% (${(xhr.loaded/1024/1024).toFixed(1)}MB)`, false);
         }
-      });
-      scene.add(currentModel);
-      controls.target.set(0, 0.2, 0);
-      controls.update();
-    }, (xhr) => {
-      if (xhr.total > 0) {
-        const pct = Math.round(xhr.loaded/xhr.total*100);
-        setStatus(`Loading ${key}... ${pct}%<br><span style="font-size:11px;color:#555">${(xhr.loaded/1024/1024).toFixed(1)} / ${(xhr.total/1024/1024).toFixed(1)} MB</span>`);
+      },
+      (err) => {
+        show(`Failed: ${name}<br><small>${err?.message||"Unknown"}</small>`, true);
+        console.error("GLTF load error:", err);
       }
-    }, (err) => {
-      setStatus(`Failed to load ${key}<br><span style="font-size:11px;color:#e55">${err?.message||'Unknown error'}</span>`, true);
-    });
+    );
   }
 
+  // Build organ list
   const list = document.getElementById("organ-list");
   organs.forEach((o) => {
     const li = document.createElement("li");
@@ -157,26 +187,28 @@ try {
     li.addEventListener("click", () => {
       document.querySelectorAll("#organ-list li").forEach(l=>l.classList.remove("active"));
       li.classList.add("active");
-      loadOrgan(o.key);
+      loadOrgan(o.key, o.name);
     });
     list.appendChild(li);
   });
 
+  // Auto-load first organ
+  show("Loading Skin model...");
+  loadOrgan("skin", "Skin");
+  document.querySelector("#organ-list li:first-child").classList.add("active");
+
   function animate() {
     requestAnimationFrame(animate);
     controls.update();
-    if (currentModel) currentModel.rotation.y += 0.002;
+    if (currentModel) currentModel.rotation.y += 0.003;
     renderer.render(scene, camera);
   }
   animate();
 
-  // Auto-load skin
-  setStatus("Loading skin model...");
-  loadOrgan("skin");
-  document.querySelector("#organ-list li:last-child").classList.add("active");
+  show("Renderer OK - loading models...");
 
 } catch(e) {
-  setStatus(`Init Error<br><span style="font-size:11px;color:#e55">${e.message}</span>`, true);
+  show(`Init Error: ${e.message}`, true);
   console.error(e);
 }
 </script>
