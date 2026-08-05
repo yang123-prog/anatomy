@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Anatomy - 3D Human Anatomy</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -17,83 +17,111 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:system-ui,sans-seri
 #status{position:absolute;top:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.8);color:#aaa;padding:8px 16px;border-radius:6px;font-size:13px;z-index:10;pointer-events:none}
 </style></head>
 <body>
-<div id="app">
-  <div id="sidebar"><h1>Human Anatomy</h1><ul id="organ-list"></ul></div>
-  <div id="viewport"><div id="status">Loading...</div></div>
-</div>
-
-<script type="importmap">
-{"imports":{"three":"https://esm.sh/three@0.160.0/build/three.module.js","three/examples/jsm/":"https://esm.sh/three@0.160.0/examples/jsm/"}}
-</script>
-
+<div id="app"><div id="sidebar"><h1>Human Anatomy</h1><ul id="organ-list"></ul></div><div id="viewport"><div id="status">Loading...</div></div></div>
+<script type="importmap">{"imports":{"three":"https://esm.sh/three@0.160.0/build/three.module.js","three/examples/jsm/":"https://esm.sh/three@0.160.0/examples/jsm/"}}</script>
 <script type="module">
-const st = document.getElementById("status");
-const organs = [
-  { key:"skin",name:"Skin",emoji:"🧍" },{ key:"brain",name:"Brain",emoji:"🧠" },
-  { key:"eyeball",name:"Eyeball",emoji:"👁" },{ key:"heart",name:"Heart",emoji:"🫀" },
-  { key:"lungs",name:"Lungs",emoji:"🫁" },{ key:"liver",name:"Liver",emoji:"🧫" },
-  { key:"kidneys",name:"Kidneys",emoji:"🫘" },{ key:"pancreas",name:"Pancreas",emoji:"🧬" },
-  { key:"intestine",name:"Intestine",emoji:"🔬" },
+const st=document.getElementById("status");
+const organs=[
+  {key:"skin",name:"Skin",emoji:"🧍",color:0xd4a574},
+  {key:"brain",name:"Brain",emoji:"🧠",color:0xe8b4b8},
+  {key:"eyeball",name:"Eyeball",emoji:"👁",color:0xffffff},
+  {key:"heart",name:"Heart",emoji:"🫀",color:0xcc3333},
+  {key:"lungs",name:"Lungs",emoji:"🫁",color:0xff9999},
+  {key:"liver",name:"Liver",emoji:"🧫",color:0x8b4513},
+  {key:"kidneys",name:"Kidneys",emoji:"🫘",color:0xcc6666},
+  {key:"pancreas",name:"Pancreas",emoji:"🧬",color:0xddaa88},
+  {key:"intestine",name:"Intestine",emoji:"🔬",color:0xcc9966},
 ];
 
-try {
-  st.textContent = "Loading Three.js...";
-  const [THREE,{OrbitControls},{GLTFLoader}] = await Promise.all([
-    import("three"),
-    import("three/examples/jsm/controls/OrbitControls.js"),
-    import("three/examples/jsm/loaders/GLTFLoader.js")
-  ]);
-  st.textContent = "Init renderer...";
+function createBody(){const g=new THREE.Group();
+  const skin=new THREE.MeshStandardMaterial({color:0xd4a574,roughness:.7,metalness:0});
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.35,32,24),skin);head.position.y=1.35;g.add(head);
+  const neck=new THREE.Mesh(new THREE.CylinderGeometry(.08,.1,.2,16),skin);neck.position.y=1.0;g.add(neck);
+  const torso=new THREE.Mesh(new THREE.CapsuleGeometry(.35,.8,8,16),skin);torso.position.y=.45;g.add(torso);
+  const lArm=new THREE.Mesh(new THREE.CapsuleGeometry(.08,.65,4,12),skin);lArm.position.set(-.45,.55,0);lArm.rotation.z=.2;g.add(lArm);
+  const rArm=new THREE.Mesh(new THREE.CapsuleGeometry(.08,.65,4,12),skin);rArm.position.set(.45,.55,0);rArm.rotation.z=-.2;g.add(rArm);
+  const lLeg=new THREE.Mesh(new THREE.CapsuleGeometry(.1,.7,4,12),skin);lLeg.position.set(-.15,-.5,0);g.add(lLeg);
+  const rLeg=new THREE.Mesh(new THREE.CapsuleGeometry(.1,.7,4,12),skin);rLeg.position.set(.15,-.5,0);g.add(rLeg);
+  g.userData={name:"Skin"};return g;}
 
-  const vp = document.getElementById("viewport");
-  const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1a1a2e);
-  const camera = new THREE.PerspectiveCamera(45, vp.clientWidth/vp.clientHeight, 0.1, 100);
-  camera.position.set(3, 2, 5);
-  const renderer = new THREE.WebGLRenderer({antialias:true});
-  renderer.setSize(vp.clientWidth, vp.clientHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  vp.appendChild(renderer.domElement);
+function createOrgan(color,pos,size,type,emoji,name){
+  const mat=new THREE.MeshStandardMaterial({color,roughness:.4,metalness:.1});
+  let mesh;
+  if(type==="sphere")mesh=new THREE.Mesh(new THREE.SphereGeometry(size,32,24),mat);
+  else if(type==="capsule")mesh=new THREE.Mesh(new THREE.CapsuleGeometry(size*.5,size,8,16),mat);
+  else if(type==="torus")mesh=new THREE.Mesh(new THREE.TorusGeometry(size*.6,size*.3,16,32),mat);
+  else mesh=new THREE.Mesh(new THREE.SphereGeometry(size,32,24),mat);
+  mesh.position.copy(pos);mesh.userData={name,emoji};
+  return mesh;}
 
-  scene.add(new THREE.AmbientLight(0x404060, 5));
-  const d1 = new THREE.DirectionalLight(0xffffff, 6); d1.position.set(5,8,5); scene.add(d1);
-  scene.add(new THREE.DirectionalLight(0x4466aa, 3)).position.set(-3,1,-2);
-  scene.add(new THREE.DirectionalLight(0x6688cc, 3)).position.set(0,-1,3);
+function buildModel(key){
+  switch(key){
+    case"skin":return createBody();
+    case"brain":{
+      const g=new THREE.Group();
+      g.add(createBody());
+      g.add(createOrgan(0xe8b4b8,new THREE.Vector3(0,1.32,.22),.22,"sphere","🧠","Brain"));
+      return g;}
+    case"eyeball":{
+      const g=new THREE.Group();
+      g.add(createBody());
+      const eye=new THREE.Mesh(new THREE.SphereGeometry(.08,16,12),new THREE.MeshStandardMaterial({color:0xffffff,roughness:.1}));
+      const pupil=new THREE.Mesh(new THREE.SphereGeometry(.035,8,8),new THREE.MeshStandardMaterial({color:0x111111}));
+      pupil.position.z=.06;eye.add(pupil);
+      eye.position.set(.13,1.2,.3);g.add(eye);
+      const eye2=eye.clone();eye2.position.set(-.13,1.2,.3);g.add(eye2);
+      return g;}
+    case"heart":{
+      const g=new THREE.Group();
+      g.add(createBody());
+      g.add(createOrgan(0xcc3333,new THREE.Vector3(.05,.8,.28),.15,"sphere","🫀","Heart"));
+      return g;}
+    case"lungs":{
+      const g=new THREE.Group();
+      g.add(createBody());
+      g.add(createOrgan(0xff9999,new THREE.Vector3(-.12,.65,.2),.2,"capsule","🫁","Lungs"));
+      g.add(createOrgan(0xff9999,new THREE.Vector3(.2,.65,.2),.2,"capsule","🫁","Lungs"));
+      return g;}
+    case"liver":{
+      const g=new THREE.Group();
+      g.add(createBody());
+      g.add(createOrgan(0x8b4513,new THREE.Vector3(.1,.45,.25),.18,"sphere","🧫","Liver"));
+      return g;}
+    case"kidneys":{
+      const g=new THREE.Group();
+      g.add(createBody());
+      g.add(createOrgan(0xcc6666,new THREE.Vector3(-.12,.25,.22),.12,"sphere","🫘","Kidneys"));
+      g.add(createOrgan(0xcc6666,new THREE.Vector3(.22,.25,.22),.12,"sphere","🫘","Kidneys"));
+      return g;}
+    case"pancreas":{
+      const g=new THREE.Group();
+      g.add(createBody());
+      g.add(createOrgan(0xddaa88,new THREE.Vector3(.08,.3,.25),.1,"capsule","🧬","Pancreas"));
+      return g;}
+    case"intestine":{
+      const g=new THREE.Group();
+      g.add(createBody());
+      g.add(createOrgan(0xcc9966,new THREE.Vector3(0,.1,.2),.2,"torus","🔬","Intestine"));
+      return g;}
+    default:return createBody();}
+}
 
-  const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true; controls.target.set(0,0.3,0); controls.update();
-  window.addEventListener("resize", () => { camera.aspect = vp.clientWidth/vp.clientHeight; camera.updateProjectionMatrix(); renderer.setSize(vp.clientWidth, vp.clientHeight); });
-
-  const loader = new GLTFLoader();
-
-  const list = document.getElementById("organ-list");
-  organs.forEach(o => { const li = document.createElement("li"); li.innerHTML = '<span class="dot"></span>'+o.emoji+' '+o.name; list.appendChild(li); });
-
-  let model = null;
-  function load(key, name) {
-    if (model) { scene.remove(model); model = null; }
-    st.textContent = "Loading " + name + "...";
-    loader.load("./models/" + key + ".glb",
-      (gltf) => { st.textContent = ""; model = gltf.scene;
-        const box = new THREE.Box3().setFromObject(model); const c = new THREE.Vector3(); box.getCenter(c);
-        model.position.sub(c).add(new THREE.Vector3(0,0.2,0));
-        model.scale.setScalar(2.5/Math.max(...box.getSize(new THREE.Vector3()).toArray()));
-        model.traverse(ch => { if(ch.isMesh){ ch.material=ch.material.clone(); ch.material.metalness=0.05; ch.material.roughness=0.45; }});
-        scene.add(model); controls.target.set(0,0.2,0); controls.update(); },
-      (xhr) => { if(xhr.total) st.textContent = name + " " + Math.round(xhr.loaded/xhr.total*100) + "%"; },
-      (err) => { st.textContent = "Failed: " + name; console.error(err); }
-    );
-  }
-
-  document.querySelectorAll("#organ-list li").forEach((li,i) => {
-    li.addEventListener("click", () => {
-      document.querySelectorAll("#organ-list li").forEach(l=>l.classList.remove("active"));
-      li.classList.add("active"); load(organs[i].key, organs[i].name);
-    });
-  });
-  load("skin","Skin"); document.querySelector("#organ-list li:first-child").classList.add("active");
-  function animate() { requestAnimationFrame(animate); controls.update(); if(model) model.rotation.y+=0.003; renderer.render(scene,camera); }
-  animate();
-} catch(e) { st.textContent = "Error: " + e.message; console.error(e); }
-</script>
-</body></html>
+try{
+st.textContent="Loading Three.js...";
+const[THREE,{OrbitControls}]=await Promise.all([import("three"),import("three/examples/jsm/controls/OrbitControls.js")]);
+st.textContent="Building models...";
+const vp=document.getElementById("viewport");
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x1a1a2e);
+const camera=new THREE.PerspectiveCamera(45,vp.clientWidth/vp.clientHeight,.1,100);camera.position.set(1.5,1.5,3);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(vp.clientWidth,vp.clientHeight);renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));renderer.outputColorSpace=THREE.SRGBColorSpace;vp.appendChild(renderer.domElement);
+scene.add(new THREE.AmbientLight(0x404060,3));const d1=new THREE.DirectionalLight(0xffffff,5);d1.position.set(3,5,4);scene.add(d1);scene.add(new THREE.DirectionalLight(0x4466aa,2)).position.set(-2,1,-1);
+const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.target.set(0,.4,0);controls.update();
+window.addEventListener("resize",()=>{camera.aspect=vp.clientWidth/vp.clientHeight;camera.updateProjectionMatrix();renderer.setSize(vp.clientWidth,vp.clientHeight)});
+const list=document.getElementById("organ-list");
+organs.forEach(o=>{const li=document.createElement("li");li.innerHTML='<span class="dot"></span>'+o.emoji+' '+o.name;list.appendChild(li)});
+let model=null;
+document.querySelectorAll("#organ-list li").forEach((li,i)=>{li.addEventListener("click",()=>{document.querySelectorAll("#organ-list li").forEach(l=>l.classList.remove("active"));li.classList.add("active");if(model)scene.remove(model);st.textContent="Loading "+organs[i].name+"...";model=buildModel(organs[i].key);scene.add(model);st.textContent="";controls.target.set(0,.4,0);controls.update()})});
+model=buildModel("skin");scene.add(model);document.querySelector("#organ-list li:first-child").classList.add("active");st.textContent="";
+function animate(){requestAnimationFrame(animate);controls.update();if(model)model.rotation.y+=.005;renderer.render(scene,camera)}animate()
+}catch(e){st.textContent="Error: "+e.message}
+</script></body></html>
