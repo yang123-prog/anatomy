@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Anatomy - 3D Human Anatomy</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -17,49 +16,50 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',system-u
 #organ-list li .dot{width:8px;height:8px;border-radius:50%;background:#333;flex-shrink:0}
 #organ-list li.active .dot{background:#4a9eff}
 #viewport{flex:1;position:relative}
-#debug{position:absolute;top:0;left:0;right:0;background:rgba(0,0,0,.9);color:#0f0;padding:12px;font-size:12px;z-index:100;font-family:monospace;max-height:40%;overflow-y:auto}
+#status{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#888;font-size:14px;z-index:10;text-align:center}
 </style>
 </head>
 <body>
-<div id="debug"></div>
 <div id="app">
   <div id="sidebar"><h1>Human Anatomy</h1><ul id="organ-list"></ul></div>
-  <div id="viewport"></div>
+  <div id="viewport"><div id="status">Loading...</div></div>
 </div>
 
 <script type="importmap">
-{"imports":{"three":"https://esm.sh/three@0.160.0/build/three.module.js","three/addons/":"https://esm.sh/three@0.160.0/examples/jsm/"}}
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
 </script>
 
 <script type="module">
-const dbg = document.getElementById("debug");
-function log(m) { dbg.textContent += m + "\n"; console.log(m); }
+const statusEl = document.getElementById("status");
+function status(msg, cls) { statusEl.innerHTML = msg; }
+const CDN = "https://cdn.jsdelivr.net/gh/yang123-prog/anatomy@main/";
 
-const RAW_BASE = "https://raw.githubusercontent.com/yang123-prog/anatomy/main/";
-log("Models from: " + RAW_BASE + "models/");
+const organs = [
+  { key:"skin", name:"Skin", emoji:"🧍" },
+  { key:"brain", name:"Brain", emoji:"🧠" },
+  { key:"eyeball", name:"Eyeball", emoji:"👁" },
+  { key:"heart", name:"Heart", emoji:"🫀" },
+  { key:"lungs", name:"Lungs", emoji:"🫁" },
+  { key:"liver", name:"Liver", emoji:"🧫" },
+  { key:"kidneys", name:"Kidneys", emoji:"🫘" },
+  { key:"pancreas", name:"Pancreas", emoji:"🧬" },
+  { key:"intestine", name:"Intestine", emoji:"🔬" },
+];
 
 try {
-  const THREE = await import("three");
-  log("Three.js v" + (THREE.REVISION||"?"));
-
-  const organs = [
-    { key:"skin", name:"Skin", emoji:"🧍" },
-    { key:"brain", name:"Brain", emoji:"🧠" },
-    { key:"eyeball", name:"Eyeball", emoji:"👁" },
-    { key:"heart", name:"Heart", emoji:"🫀" },
-    { key:"lungs", name:"Lungs", emoji:"🫁" },
-    { key:"liver", name:"Liver", emoji:"🧫" },
-    { key:"kidneys", name:"Kidneys", emoji:"🫘" },
-    { key:"pancreas", name:"Pancreas", emoji:"🧬" },
-    { key:"intestine", name:"Intestine", emoji:"🔬" },
-  ];
-
-  const list = document.getElementById("organ-list");
-  organs.forEach(o => {
-    const li = document.createElement("li");
-    li.innerHTML = '<span class="dot"></span>' + o.emoji + ' ' + o.name;
-    list.appendChild(li);
-  });
+  status("Loading Three.js...");
+  const [THREE, {OrbitControls}, {GLTFLoader}, {DRACOLoader}] = await Promise.all([
+    import("three"),
+    import("three/addons/controls/OrbitControls.js"),
+    import("three/addons/loaders/GLTFLoader.js"),
+    import("three/addons/loaders/DRACOLoader.js")
+  ]);
+  status("Initializing...");
 
   const vp = document.getElementById("viewport");
   const scene = new THREE.Scene();
@@ -69,46 +69,65 @@ try {
   const renderer = new THREE.WebGLRenderer({antialias:true});
   renderer.setSize(vp.clientWidth, vp.clientHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.2;
   vp.appendChild(renderer.domElement);
-  scene.add(new THREE.AmbientLight(0x404060, 4));
-  const dl = new THREE.DirectionalLight(0xffffff, 5);
-  dl.position.set(5, 8, 5);
-  scene.add(dl);
 
-  const {OrbitControls} = await import("three/addons/controls/OrbitControls.js");
+  scene.add(new THREE.AmbientLight(0x404060, 5));
+  const d1 = new THREE.DirectionalLight(0xffffff, 6);
+  d1.position.set(5, 8, 5); scene.add(d1);
+  const d2 = new THREE.DirectionalLight(0x4466aa, 3);
+  d2.position.set(-3, 1, -2); scene.add(d2);
+  const d3 = new THREE.DirectionalLight(0x6688cc, 3);
+  d3.position.set(0, -1, 3); scene.add(d3);
+
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true; controls.dampingFactor = 0.08;
   controls.target.set(0, 0.3, 0); controls.update();
 
-  const {GLTFLoader} = await import("three/addons/loaders/GLTFLoader.js");
-  const {DRACOLoader} = await import("three/addons/loaders/DRACOLoader.js");
+  window.addEventListener("resize", () => {
+    camera.aspect = vp.clientWidth/vp.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(vp.clientWidth, vp.clientHeight);
+  });
+
   const dracoLoader = new DRACOLoader();
-  dracoLoader.setDecoderPath(RAW_BASE + "draco/");
+  dracoLoader.setDecoderPath(CDN + "draco/");
   const gltfLoader = new GLTFLoader();
   gltfLoader.setDRACOLoader(dracoLoader);
+
+  const list = document.getElementById("organ-list");
+  organs.forEach(o => {
+    const li = document.createElement("li");
+    li.innerHTML = '<span class="dot"></span>' + o.emoji + ' ' + o.name;
+    list.appendChild(li);
+  });
 
   let currentModel = null;
   function loadOrgan(key, name) {
     if (currentModel) { scene.remove(currentModel); currentModel = null; }
-    const url = RAW_BASE + "models/" + key + ".glb";
-    log("Loading: " + name + " ...");
-    gltfLoader.load(url,
+    status("Loading " + name + "...");
+    gltfLoader.load(CDN + "models/" + key + ".glb",
       (gltf) => {
-        log("OK: " + name);
+        status("");
         currentModel = gltf.scene;
         const box = new THREE.Box3().setFromObject(currentModel);
         const c = new THREE.Vector3(); box.getCenter(c);
-        currentModel.position.sub(c).add(new THREE.Vector3(0,0.2,0));
+        currentModel.position.sub(c).add(new THREE.Vector3(0, 0.2, 0));
         const s = 2.5 / Math.max(...box.getSize(new THREE.Vector3()).toArray());
         currentModel.scale.setScalar(s);
         currentModel.traverse(ch => {
-          if (ch.isMesh) { ch.material = ch.material.clone(); ch.material.metalness=0.05; ch.material.roughness=0.45; }
+          if (ch.isMesh) {
+            ch.material = ch.material.clone();
+            ch.material.metalness = 0.05; ch.material.roughness = 0.45;
+          }
         });
         scene.add(currentModel);
-        controls.target.set(0,0.2,0); controls.update();
+        controls.target.set(0, 0.2, 0); controls.update();
       },
-      (xhr) => { if (xhr.total) log(name + " " + Math.round(xhr.loaded/xhr.total*100) + "%"); },
-      (err) => { log("FAIL " + name + ": " + (err?.message||"unknown")); }
+      (xhr) => { if (xhr.total) status(name + " " + Math.round(xhr.loaded/xhr.total*100) + "%"); },
+      (err) => { status("Failed: " + name); console.error(err); }
     );
   }
 
@@ -130,10 +149,9 @@ try {
     renderer.render(scene, camera);
   }
   animate();
-  log("Renderer running");
 
 } catch(e) {
-  log("ERROR: " + e.message);
+  status("Error: " + e.message);
   console.error(e);
 }
 </script>
