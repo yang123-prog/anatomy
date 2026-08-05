@@ -6,9 +6,9 @@
 <title>Anatomy - 3D Human Anatomy</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e0e0e0}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,sans-serif;background:#0a0a0a;color:#e0e0e0}
 #app{display:flex;width:100%;height:100%}
-#sidebar{width:260px;min-width:260px;background:#111;border-right:1px solid #222;display:flex;flex-direction:column;overflow-y:auto;z-index:1}
+#sidebar{width:260px;min-width:260px;background:#111;border-right:1px solid #222;display:flex;flex-direction:column;overflow-y:auto}
 #sidebar h1{padding:24px 20px 16px;font-size:18px;font-weight:600;border-bottom:1px solid #222;color:#fff}
 #organ-list{list-style:none;padding:0}
 #organ-list li{padding:14px 20px;cursor:pointer;transition:all .15s;border-left:3px solid transparent;font-size:14px;color:#999;display:flex;align-items:center;gap:10px}
@@ -17,199 +17,180 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',system-u
 #organ-list li .dot{width:8px;height:8px;border-radius:50%;background:#333;flex-shrink:0}
 #organ-list li.active .dot{background:#4a9eff}
 #viewport{flex:1;position:relative}
-#status{position:absolute;top:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.8);padding:8px 16px;border-radius:6px;font-size:13px;color:#aaa;z-index:10;pointer-events:none;text-align:center}
-#status.error{color:#e55}
+#viewport canvas{display:block}
+#debug{position:absolute;top:0;left:0;right:0;background:rgba(255,0,0,.8);color:#fff;padding:12px;font-size:13px;z-index:100;display:none}
+#debug.show{display:block}
 </style>
 </head>
 <body>
+<div id="debug"></div>
 <div id="app">
   <div id="sidebar">
     <h1>Human Anatomy</h1>
     <ul id="organ-list"></ul>
   </div>
-  <div id="viewport">
-    <div id="status">Loading 3D engine...</div>
-  </div>
+  <div id="viewport"></div>
 </div>
 
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-  }
-}
-</script>
-
 <script type="module">
-const st = document.getElementById("status");
-function show(msg, isErr) { st.innerHTML = msg; st.className = isErr ? "error" : ""; }
-
-const organs = [
-  { key:"skin",      name:"Skin",       emoji:"🧍" },
-  { key:"brain",     name:"Brain",       emoji:"🧠" },
-  { key:"eyeball",   name:"Eyeball",     emoji:"👁" },
-  { key:"heart",     name:"Heart",       emoji:"🫀" },
-  { key:"lungs",     name:"Lungs",       emoji:"🫁" },
-  { key:"liver",     name:"Liver",       emoji:"🧫" },
-  { key:"kidneys",   name:"Kidneys",     emoji:"🫘" },
-  { key:"pancreas",  name:"Pancreas",    emoji:"🧬" },
-  { key:"intestine", name:"Intestine",   emoji:"🔬" },
-];
+const debugEl = document.getElementById("debug");
+function debug(msg) { debugEl.textContent += msg + "\n"; debugEl.classList.add("show"); console.log(msg); }
 
 try {
-  show("Loading Three.js + Draco...");
-  const [THREE, {OrbitControls}, {GLTFLoader}, {DRACOLoader}] = await Promise.all([
-    import("three"),
-    import("three/addons/controls/OrbitControls.js"),
-    import("three/addons/loaders/GLTFLoader.js"),
-    import("three/addons/loaders/DRACOLoader.js")
-  ]);
+  // Test 1: JS execution
+  debug("1. JS running OK");
 
+  // Test 2: Import map resolution
+  const THREE = await import("https://esm.sh/three@0.160.0/build/three.module.js");
+  debug("2. Three.js imported: " + (THREE.REVISION || "OK"));
+
+  // Test 3: WebGL support
+  const canvas = document.createElement("canvas");
+  const gl = canvas.getContext("webgl2") || canvas.getContext("webgl");
+  debug("3. WebGL: " + (gl ? "YES" : "NO"));
+
+  if (!gl) {
+    debug("ERROR: WebGL not supported!");
+    throw new Error("WebGL not available");
+  }
+
+  // Test 4: Build organ list
+  const organs = [
+    { key:"skin", name:"Skin", emoji:"🧍" },
+    { key:"brain", name:"Brain", emoji:"🧠" },
+    { key:"eyeball", name:"Eyeball", emoji:"👁" },
+    { key:"heart", name:"Heart", emoji:"🫀" },
+    { key:"lungs", name:"Lungs", emoji:"🫁" },
+    { key:"liver", name:"Liver", emoji:"🧫" },
+    { key:"kidneys", name:"Kidneys", emoji:"🫘" },
+    { key:"pancreas", name:"Pancreas", emoji:"🧬" },
+    { key:"intestine", name:"Intestine", emoji:"🔬" },
+  ];
+  const list = document.getElementById("organ-list");
+  organs.forEach((o) => {
+    const li = document.createElement("li");
+    li.innerHTML = '<span class="dot"></span>' + o.emoji + ' ' + o.name;
+    list.appendChild(li);
+  });
+  debug("4. Organ list built: " + organs.length + " items");
+
+  // Test 5: Create renderer + cube
   const vp = document.getElementById("viewport");
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0f0f0f);
+  scene.background = new THREE.Color(0x1a1a2e);
 
   const camera = new THREE.PerspectiveCamera(45, vp.clientWidth/vp.clientHeight, 0.1, 100);
   camera.position.set(3, 2, 5);
+  camera.lookAt(0, 0, 0);
 
   const renderer = new THREE.WebGLRenderer({antialias:true});
   renderer.setSize(vp.clientWidth, vp.clientHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.2;
   vp.appendChild(renderer.domElement);
 
-  const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.08;
-  controls.target.set(0, 0.3, 0);
-  controls.update();
+  // Simple cube
+  const cubeGeo = new THREE.BoxGeometry(1.5, 1.5, 1.5);
+  const cubeMat = new THREE.MeshStandardMaterial({color:0x4a9eff, roughness:0.3, metalness:0.2});
+  const cube = new THREE.Mesh(cubeGeo, cubeMat);
+  scene.add(cube);
 
   // Lighting
-  scene.add(new THREE.AmbientLight(0x404060, 5));
-  const d1 = new THREE.DirectionalLight(0xffffff, 6);
-  d1.position.set(5, 8, 5);
-  scene.add(d1);
-  const d2 = new THREE.DirectionalLight(0x4466aa, 3);
-  d2.position.set(-3, 1, -2);
-  scene.add(d2);
-  const d3 = new THREE.DirectionalLight(0x6688cc, 3);
-  d3.position.set(0, -1, 3);
-  scene.add(d3);
+  scene.add(new THREE.AmbientLight(0x404060, 4));
+  const dl = new THREE.DirectionalLight(0xffffff, 5);
+  dl.position.set(5, 8, 5);
+  scene.add(dl);
 
-  // Ground grid for reference
-  const grid = new THREE.GridHelper(4, 20, 0x333333, 0x222222);
-  grid.position.y = -1;
-  scene.add(grid);
+  debug("5. Renderer + cube created");
 
-  // Test sphere to verify rendering
-  const testGeo = new THREE.SphereGeometry(0.5, 32, 32);
-  const testMat = new THREE.MeshStandardMaterial({color:0x4a9eff, roughness:0.3, metalness:0.1});
-  const testSphere = new THREE.Mesh(testGeo, testMat);
-  scene.add(testSphere);
-  show("Renderer OK - test sphere visible");
-
-  window.addEventListener("resize", () => {
-    camera.aspect = vp.clientWidth/vp.clientHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(vp.clientWidth, vp.clientHeight);
-  });
-
-  // Draco loader
-  const dracoLoader = new DRACOLoader();
-  dracoLoader.setDecoderPath("./draco/");
-  dracoLoader.setDecoderConfig({type:"js"});
-
-  const gltfLoader = new GLTFLoader();
-  gltfLoader.setDRACOLoader(dracoLoader);
-
-  let currentModel = null;
-
-  function disposeModel(obj) {
-    obj.traverse((child) => {
-      if (child.geometry) child.geometry.dispose();
-      if (child.material) {
-        if (Array.isArray(child.material)) child.material.forEach(m=>m.dispose());
-        else child.material.dispose();
-      }
-    });
-  }
-
-  function loadOrgan(key, name) {
-    if (currentModel) { scene.remove(currentModel); disposeModel(currentModel); currentModel = null; }
-    // Remove test sphere when first model loads
-    if (testSphere.parent) { scene.remove(testSphere); grid.visible = false; }
-    show(`Loading ${name}...`);
-    gltfLoader.load(`./models/${key}.glb`,
-      (gltf) => {
-        show("");
-        currentModel = gltf.scene;
-        const box = new THREE.Box3().setFromObject(currentModel);
-        const center = new THREE.Vector3();
-        box.getCenter(center);
-        currentModel.position.sub(center).add(new THREE.Vector3(0, 0.2, 0));
-        const size = box.getSize(new THREE.Vector3());
-        const s = 2.5 / Math.max(size.x, size.y, size.z);
-        currentModel.scale.setScalar(s);
-        currentModel.traverse((child) => {
-          if (child.isMesh) {
-            child.material = child.material.clone();
-            child.material.metalness = 0.05;
-            child.material.roughness = 0.45;
-            child.material.needsUpdate = true;
-          }
-        });
-        scene.add(currentModel);
-        controls.target.set(0, 0.2, 0);
-        controls.update();
-        console.log("Loaded:", key, "triangles:", renderer.info.render.triangles);
-      },
-      (xhr) => {
-        if (xhr.total > 0) {
-          const pct = Math.round(xhr.loaded/xhr.total*100);
-          show(`${name} ${pct}% (${(xhr.loaded/1024/1024).toFixed(1)}MB)`, false);
-        }
-      },
-      (err) => {
-        show(`Failed: ${name}<br><small>${err?.message||"Unknown"}</small>`, true);
-        console.error("GLTF load error:", err);
-      }
-    );
-  }
-
-  // Build organ list
-  const list = document.getElementById("organ-list");
-  organs.forEach((o) => {
-    const li = document.createElement("li");
-    li.innerHTML = `<span class="dot"></span>${o.emoji} ${o.name}`;
-    li.addEventListener("click", () => {
-      document.querySelectorAll("#organ-list li").forEach(l=>l.classList.remove("active"));
-      li.classList.add("active");
-      loadOrgan(o.key, o.name);
-    });
-    list.appendChild(li);
-  });
-
-  // Auto-load first organ
-  show("Loading Skin model...");
-  loadOrgan("skin", "Skin");
-  document.querySelector("#organ-list li:first-child").classList.add("active");
-
+  // Animate
   function animate() {
     requestAnimationFrame(animate);
-    controls.update();
-    if (currentModel) currentModel.rotation.y += 0.003;
+    cube.rotation.y += 0.01;
+    cube.rotation.x += 0.005;
     renderer.render(scene, camera);
   }
   animate();
 
-  show("Renderer OK - loading models...");
+  debug("6. Animation started - you should see a blue cube!");
+  // Hide debug after a few seconds
+  setTimeout(() => { debugEl.classList.remove("show"); }, 6000);
+
+  // Organ loading
+  const {OrbitControls} = await import("https://esm.sh/three@0.160.0/examples/jsm/controls/OrbitControls.js");
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.target.set(0, 0, 0);
+
+  const {GLTFLoader} = await import("https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js");
+  const {DRACOLoader} = await import("https://esm.sh/three@0.160.0/examples/jsm/loaders/DRACOLoader.js");
+  
+  const dracoLoader = new DRACOLoader();
+  dracoLoader.setDecoderPath("./draco/");
+  const gltfLoader = new GLTFLoader();
+  gltfLoader.setDRACOLoader(dracoLoader);
+
+  let currentModel = null;
+  function loadOrgan(key, name, li) {
+    if (currentModel) { scene.remove(currentModel); currentModel = null; }
+    scene.remove(cube);
+    debug("Loading " + name + "...");
+    
+    gltfLoader.load("./models/" + key + ".glb",
+      (gltf) => {
+        debug("Loaded: " + name);
+        currentModel = gltf.scene;
+        const box = new THREE.Box3().setFromObject(currentModel);
+        const center = new THREE.Vector3(); box.getCenter(center);
+        currentModel.position.sub(center).add(new THREE.Vector3(0, 0.2, 0));
+        const size = box.getSize(new THREE.Vector3());
+        currentModel.scale.setScalar(2.5 / Math.max(size.x, size.y, size.z));
+        currentModel.traverse((c) => {
+          if (c.isMesh) { c.material = c.material.clone(); c.material.metalness = 0.05; c.material.roughness = 0.45; }
+        });
+        scene.add(currentModel);
+        controls.target.set(0, 0.2, 0);
+        controls.update();
+      },
+      (xhr) => { if (xhr.total) debug(name + " " + Math.round(xhr.loaded/xhr.total*100) + "%"); },
+      (err) => { debug("FAILED " + name + ": " + (err?.message||"unknown")); scene.add(cube); }
+    );
+  }
+
+  // Wire organ buttons
+  document.querySelectorAll("#organ-list li").forEach((li, i) => {
+    li.addEventListener("click", () => {
+      document.querySelectorAll("#organ-list li").forEach(l=>l.classList.remove("active"));
+      li.classList.add("active");
+      loadOrgan(organs[i].key, organs[i].name, li);
+    });
+  });
+
+  // Load skin
+  loadOrgan("skin", "Skin");
+  document.querySelector("#organ-list li:first-child").classList.add("active");
+
+  function animate2() {
+    requestAnimationFrame(animate2);
+    controls.update();
+    if (currentModel) currentModel.rotation.y += 0.003;
+    renderer.render(scene, camera);
+  }
+  // Replace animation loop
+  // Cancel previous loop - just override
+  let animId;
+  function loop() {
+    animId = requestAnimationFrame(loop);
+    controls.update();
+    if (currentModel) currentModel.rotation.y += 0.003;
+    else if (cube.parent) cube.rotation.y += 0.01;
+    renderer.render(scene, camera);
+  }
+  cancelAnimationFrame(animId);
+  loop();
 
 } catch(e) {
-  show(`Init Error: ${e.message}`, true);
-  console.error(e);
+  debug("FATAL: " + e.message + "\n" + (e.stack||"").substring(0, 200));
 }
 </script>
 </body>
