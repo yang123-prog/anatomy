@@ -11,10 +11,10 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:system-ui,sans-seri
 #organ-list li{padding:14px 20px;cursor:pointer;transition:all .15s;border-left:3px solid transparent;font-size:14px;color:#999;display:flex;align-items:center;gap:10px}
 #organ-list li:hover{background:#1a1a1a;color:#fff}
 #organ-list li.active{background:#1a1a1a;color:#fff;border-left-color:#4a9eff}
-#organ-list li .dot{width:8px;height:8px;border-radius:50%;background:#333;flex-shrink:0}
+#organ-list li .dot{width:8px;height:8px;border-radius:50%;background:#333}
 #organ-list li.active .dot{background:#4a9eff}
 #viewport{flex:1;position:relative}
-#status{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#888;font-size:14px;z-index:10;pointer-events:none}
+#status{position:absolute;top:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.8);color:#aaa;padding:8px 16px;border-radius:6px;font-size:13px;z-index:10;pointer-events:none}
 </style></head>
 <body>
 <div id="app">
@@ -25,8 +25,8 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:system-ui,sans-seri
 <script type="importmap">
 {
   "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    "three": "https://esm.sh/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://esm.sh/three@0.160.0/examples/jsm/"
   }
 }
 </script>
@@ -34,22 +34,20 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:system-ui,sans-seri
 <script type="module">
 const st = document.getElementById("status");
 const organs = [
-  { key:"skin", name:"Skin", emoji:"🧍" }, { key:"brain", name:"Brain", emoji:"🧠" },
-  { key:"eyeball", name:"Eyeball", emoji:"👁" }, { key:"heart", name:"Heart", emoji:"🫀" },
-  { key:"lungs", name:"Lungs", emoji:"🫁" }, { key:"liver", name:"Liver", emoji:"🧫" },
-  { key:"kidneys", name:"Kidneys", emoji:"🫘" }, { key:"pancreas", name:"Pancreas", emoji:"🧬" },
-  { key:"intestine", name:"Intestine", emoji:"🔬" },
+  { key:"skin",name:"Skin",emoji:"🧍" },{ key:"brain",name:"Brain",emoji:"🧠" },
+  { key:"eyeball",name:"Eyeball",emoji:"👁" },{ key:"heart",name:"Heart",emoji:"🫀" },
+  { key:"lungs",name:"Lungs",emoji:"🫁" },{ key:"liver",name:"Liver",emoji:"🧫" },
+  { key:"kidneys",name:"Kidneys",emoji:"🫘" },{ key:"pancreas",name:"Pancreas",emoji:"🧬" },
+  { key:"intestine",name:"Intestine",emoji:"🔬" },
 ];
 
 try {
   st.textContent = "Loading Three.js...";
   const [THREE,{OrbitControls},{GLTFLoader},{DRACOLoader}] = await Promise.all([
-    import("three"),
-    import("three/addons/controls/OrbitControls.js"),
-    import("three/addons/loaders/GLTFLoader.js"),
-    import("three/addons/loaders/DRACOLoader.js")
+    import("three"), import("three/addons/controls/OrbitControls.js"),
+    import("three/addons/loaders/GLTFLoader.js"), import("three/addons/loaders/DRACOLoader.js")
   ]);
-  st.textContent = "Three.js ready. Loading model...";
+  st.textContent = "Initializing...";
 
   const vp = document.getElementById("viewport");
   const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1a1a2e);
