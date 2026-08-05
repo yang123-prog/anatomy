@@ -32,6 +32,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:system-ui,sans-seri
 </script>
 
 <script type="module">
+const RAW = "https://raw.githubusercontent.com/yang123-prog/anatomy/main/";
 const st = document.getElementById("status");
 const organs = [
   { key:"skin",name:"Skin",emoji:"🧍" },{ key:"brain",name:"Brain",emoji:"🧠" },
@@ -49,7 +50,7 @@ try {
     import("three/examples/jsm/loaders/GLTFLoader.js"),
     import("three/examples/jsm/loaders/DRACOLoader.js")
   ]);
-  st.textContent = "Three.js ready. Loading model...";
+  st.textContent = "Ready. Loading model...";
 
   const vp = document.getElementById("viewport");
   const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1a1a2e);
@@ -68,10 +69,9 @@ try {
 
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true; controls.target.set(0,0.3,0); controls.update();
-
   window.addEventListener("resize", () => { camera.aspect = vp.clientWidth/vp.clientHeight; camera.updateProjectionMatrix(); renderer.setSize(vp.clientWidth, vp.clientHeight); });
 
-  const draco = new DRACOLoader(); draco.setDecoderPath("./draco/");
+  const draco = new DRACOLoader(); draco.setDecoderPath(RAW + "draco/");
   const loader = new GLTFLoader(); loader.setDRACOLoader(draco);
 
   const list = document.getElementById("organ-list");
@@ -81,7 +81,7 @@ try {
   function load(key, name) {
     if (model) { scene.remove(model); model = null; }
     st.textContent = "Loading " + name + "...";
-    loader.load("./models/" + key + ".glb",
+    loader.load(RAW + "models/" + key + ".glb",
       (gltf) => { st.textContent = ""; model = gltf.scene;
         const box = new THREE.Box3().setFromObject(model); const c = new THREE.Vector3(); box.getCenter(c);
         model.position.sub(c).add(new THREE.Vector3(0,0.2,0));
